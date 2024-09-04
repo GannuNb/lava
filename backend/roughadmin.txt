@@ -1,0 +1,316 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import '../styling/AdminDashboard.css';
+
+const AdminDashboard = () => {
+    const [scrapData, setScrapData] = useState([]);
+    const [editIndex, setEditIndex] = useState(null);
+    const [formData, setFormData] = useState({
+        title: '',
+        material: '',
+        availableQuantity: '',
+        price: '',
+        imageUrl: ''
+    });
+
+    useEffect(() => {
+        fetchScrapData();
+    }, []);
+
+    const fetchScrapData = async () => {
+        try {
+            const response = await axios.get('http://localhost:5000/admin/scrap-items');
+            setScrapData(response.data);
+        } catch (error) {
+            console.error('Error fetching scrap data', error);
+        }
+    };
+
+    const handleEdit = (index) => {
+        setEditIndex(index);
+        setFormData(scrapData[index]);
+    };
+
+    const handleInputChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSave = async () => {
+        try {
+            const updatedItem = await axios.put(`http://localhost:5000/admin/scrap-items/${scrapData[editIndex]._id}`, formData);
+            const updatedScrapData = [...scrapData];
+            updatedScrapData[editIndex] = updatedItem.data;
+            setScrapData(updatedScrapData);
+            setEditIndex(null);
+        } catch (error) {
+            console.error('Error updating scrap data', error);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            await axios.delete(`http://localhost:5000/admin/scrap-items/${id}`);
+            setScrapData(scrapData.filter(item => item._id !== id));
+        } catch (error) {
+            console.error('Error deleting scrap data', error);
+        }
+    };
+
+    return (
+        <div className="container mt-5">
+            <h1>Admin Dashboard</h1>
+            <div className="scrap-grid">
+                {scrapData.map((item, index) => (
+                    <div key={item._id} className="scrap-card">
+                        {editIndex === index ? (
+                            <div className="edit-form">
+                                <input type="text" name="title" value={formData.title} onChange={handleInputChange} placeholder="Title" />
+                                <input type="text" name="material" value={formData.material} onChange={handleInputChange} placeholder="Material" />
+                                <input type="text" name="availableQuantity" value={formData.availableQuantity} onChange={handleInputChange} placeholder="Available Quantity" />
+                                <input type="number" name="price" value={formData.price} onChange={handleInputChange} placeholder="Price" />
+                                <input type="text" name="imageUrl" value={formData.imageUrl} onChange={handleInputChange} placeholder="Image URL" />
+                                <div className="buttons">
+                                    <button className="btn btn-primary" onClick={handleSave}>Save</button>
+                                    <button className="btn btn-secondary" onClick={() => setEditIndex(null)}>Cancel</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="scrap-details">
+                                <h4>{item.title}</h4>
+                                <img src={item.imageUrl} alt={item.title} className="scrap-image" />
+                                <p>Material: {item.material}</p>
+                                <p>Available Quantity: {item.availableQuantity}</p>
+                                <p>Price: {item.price}</p>
+                                <div className="buttons">
+                                    <button className="btn btn-primary" onClick={() => handleEdit(index)}>Edit</button>
+                                    <button className="btn btn-danger" onClick={() => handleDelete(item._id)}>Delete</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+export default AdminDashboard;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const express = require('express');
+const router = express.Router();
+const ScrapItem = require('../models/ScrapItem'); // Import the updated ScrapItem model
+
+// Get all scrap items
+router.get('/scrap-items', async (req, res) => {
+    try {
+        const scrapItems = await ScrapItem.find();
+        res.json(scrapItems);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Add a new scrap item
+router.post('/scrap-items', async (req, res) => {
+    const { title, material, availableQuantity, price, imageUrl } = req.body;
+
+    try {
+        const newScrapItem = new ScrapItem({
+            title,
+            material,
+            availableQuantity,
+            price,
+            imageUrl
+        });
+
+        const savedItem = await newScrapItem.save();
+        res.json(savedItem);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Update a scrap item by ID
+router.put('/scrap-items/:id', async (req, res) => {
+    const { id } = req.params;
+    const { title, material, availableQuantity, price, imageUrl } = req.body;
+
+    try {
+        const updatedItem = await ScrapItem.findByIdAndUpdate(id, {
+            title,
+            material,
+            availableQuantity,
+            price,
+            imageUrl
+        }, { new: true });
+
+        if (!updatedItem) {
+            return res.status(404).json({ msg: 'Scrap item not found' });
+        }
+
+        res.json(updatedItem);
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// Delete a scrap item by ID
+router.delete('/scrap-items/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedItem = await ScrapItem.findByIdAndDelete(id);
+
+        if (!deletedItem) {
+            return res.status(404).json({ msg: 'Scrap item not found' });
+        }
+
+        res.json({ msg: 'Scrap item deleted' });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+module.exports = router;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+db.scrapitems.insertMany([
+  {
+    title: 'Tyre Scrap',
+    material: 'Baled Tyres',
+    availableQuantity: '600 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1527266258038-6ae3e089a609?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dHlyZSUyMHNjcmFwfGVufDB8fDB8fHww'
+  },
+  {
+    title: 'Tyre Scrap',
+    material: 'Shredder Tyres',
+    availableQuantity: '800 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1527266258038-6ae3e089a609?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dHlyZSUyMHNjcmFwfGVufDB8fDB8fHww'
+  },
+  {
+    title: 'Tyre Scrap',
+    material: '3 piece Pcr Binded',
+    availableQuantity: '300 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1527266258038-6ae3e089a609?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dHlyZSUyMHNjcmFwfGVufDB8fDB8fHww'
+  },
+  {
+    title: 'Tyre Scrap',
+    material: '3 piece Tbr Loose',
+    availableQuantity: '600 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1527266258038-6ae3e089a609?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dHlyZSUyMHNjcmFwfGVufDB8fDB8fHww'
+  },
+  {
+    title: 'Tyre Scrap',
+    material: 'Rubber Mulch',
+    availableQuantity: '600 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1527266258038-6ae3e089a609?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8dHlyZSUyMHNjcmFwfGVufDB8fDB8fHww'
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'HMS 1&2',
+    availableQuantity: '250 kgs',
+    price: 200,
+    imageUrl: 'https://c8.alamy.com/comp/B5W56X/stainless-steel-scrap-at-a-steel-recycling-centre-in-sheffield-B5W56X.jpg'
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'Tin Scrap',
+    availableQuantity: '300 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWV0YWwlMjBzY3JhcHxlbnwwfHwwfHx8MA=='
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'Aluminium Taint/Tabor',
+    availableQuantity: '180 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWV0YWwlMjBzY3JhcHxlbnwwfHwwfHx8MA=='
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'Aluminium Tense',
+    availableQuantity: '210 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWV0YWwlMjBzY3JhcHxlbnwwfHwwfHx8MA=='
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'Aluminium UBC',
+    availableQuantity: '190 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWV0YWwlMjBzY3JhcHxlbnwwfHwwfHx8MA=='
+  },
+  {
+    title: 'Metal Scrap',
+    material: 'Copper Scrap',
+    availableQuantity: '120 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bWV0YWwlMjBzY3JhcHxlbnwwfHwwfHx8MA=='
+  },
+  {
+    title: 'plastic Scrap',
+    material: 'PET SCRAP',
+    availableQuantity: '300 kgs',
+    price: 200,
+    imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRV07u1dUnX0tL-P2PGlXuyHtPDWVepY7OSAg&s'
+  },
+  {
+    title: 'plastic Scrap',
+    material: 'LDPE SCRAP',
+    availableQuantity: '250 kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1593805060136-9248c59c9e4a?w=500&auto=format&fit=crop&q=60'
+  },
+  {
+    title: 'paper scrap',
+    material: 'PAPER SCRAP',
+    availableQuantity: '400 Kgs',
+    price: 200,
+    imageUrl: 'https://www.scrapwalla.com/img/scrap-images/old-paper-scrap.webp'
+  },
+  {
+    title: 'paper scrap',
+    material: 'OCC SCRAP',
+    availableQuantity: '350 Kgs',
+    price: 200,
+    imageUrl: 'https://images.unsplash.com/photo-1593804697322-c4e10a1d4fc6?w=500&auto=format&fit=crop&q=60'
+  }
+]);
